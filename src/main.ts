@@ -208,7 +208,7 @@ class Game {
 
       const quat = new THREE.Quaternion();
       this.controls.updateRotation(quat);
-      this.playerShape.group.quaternion.copy(this.startQuat).multiply(quat);
+      this.playerShape.group.quaternion.copy(quat).multiply(this.startQuat);
 
       if (quat.angleTo(this.prevQuat) > 0.005) {
         this.rotationCount++;

@@ -115,7 +115,8 @@ export class Controls {
     axis.normalize();
 
     const delta = new THREE.Quaternion().setFromAxisAngle(axis, angle);
-    this.accumulatedQuat.multiply(delta);
+    this.accumulatedQuat.premultiply(delta);
+    this.accumulatedQuat.normalize();
     this.lastPoint.copy(cur);
   }
 
