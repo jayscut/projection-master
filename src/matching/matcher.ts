@@ -23,7 +23,7 @@ function computeScale(points: THREE.Vector3[], centroid: THREE.Vector3): number 
     const d = p.distanceTo(centroid);
     if (d > maxDist) maxDist = d;
   }
-  return maxDist || 1;
+  return maxDist;
 }
 
 export function computeMatchScore(
@@ -40,9 +40,10 @@ export function computeMatchScore(
 
   const targetScale = computeScale(targetCorners, targetCentroid);
   const playerScale = computeScale(playerCorners, playerCentroid);
+  const refScale = Math.max(targetScale, playerScale, 1e-6);
 
-  const normTarget = normalizePoints(targetCorners, targetCentroid, targetScale);
-  const normPlayer = normalizePoints(playerCorners, playerCentroid, playerScale);
+  const normTarget = normalizePoints(targetCorners, targetCentroid, refScale);
+  const normPlayer = normalizePoints(playerCorners, playerCentroid, refScale);
 
   let sumSqDist = 0;
 
