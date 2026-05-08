@@ -51,6 +51,7 @@ class Game {
   private prevRotationY = 0;
   private hintActive = false;
   private hintTimer = 0;
+  private debugPanel: HTMLElement | null = null; // toggle via URL #debug
 
   constructor() {
     this.container = document.getElementById('app')!;
@@ -61,6 +62,17 @@ class Game {
     this.renderer = createRenderer(this.container);
     this.synth = new Synth();
     if (this.saveData.muted) this.synth.toggleMute();
+
+    if (window.location.hash === '#debug') {
+      this.debugPanel = document.createElement('pre');
+      this.debugPanel.style.cssText = `
+        position:absolute;top:0;left:0;right:0;bottom:0;z-index:50;
+        display:flex;gap:20px;pointer-events:none;
+        font:10px/1.4 monospace;color:#0f0;padding:8px;
+        background:rgba(0,0,0,0.7);overflow:hidden;
+      `;
+      this.container.appendChild(this.debugPanel);
+    }
   }
 
   start(): void {
@@ -218,6 +230,27 @@ class Game {
       const playerCorners = this.playerShape.getCorners();
       const tolerance = this.currentLevel?.tolerance ?? 0.08;
       this.matchPercent = computeMatchScore(targetCorners, playerCorners, tolerance);
+
+      if (this.debugPanel && this.currentLevel) {
+        const tq = this.targetShape.group.quaternion;
+        const pq = this.playerShape.group.quaternion;
+        const fmt = (v: THREE.Vector3) => `(${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)})`;
+        const fmtQ = (q: THREE.Quaternion) => `[${q.x.toFixed(3)},${q.y.toFixed(3)},${q.z.toFixed(3)},${q.w.toFixed(3)}]`;
+        this.debugPanel.innerHTML =
+          `<div style="flex:1;white-space:pre-wrap">` +
+          `【目标 · ${this.currentLevel.name}】\n` +
+          `旋转: ${fmtQ(tq)}\n容差: ${tolerance}\n` +
+          `角点数: ${targetCorners.length}\n` +
+          targetCorners.map(c => fmt(c)).join('\n') +
+          `</div>` +
+          `<div style="flex:1;white-space:pre-wrap">` +
+          `【玩家 · 匹配 ${(this.matchPercent*100).toFixed(1)}%】\n` +
+          `旋转: ${fmtQ(pq)}\n` +
+          `RMSE≈${(tolerance*(1-this.matchPercent)).toFixed(4)}\n` +
+          `角点数: ${playerCorners.length}\n` +
+          playerCorners.map(c => fmt(c)).join('\n') +
+          `</div>`;
+      }
     }
 
     if (this.matchPercent > 0.92 && this.playerShape) {
