@@ -297,6 +297,7 @@ class Game {
     this.hud?.remove();
     this.menu?.remove();
 
+    this.controls?.destroy();
     this.targetShape = null;
     this.playerShape = null;
     this.controls = null;

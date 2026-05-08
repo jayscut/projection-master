@@ -90,7 +90,7 @@ export class CardFlip {
   }
 
   flip(onComplete: () => void): void {
-    const tl = gsap.timeline({ onComplete });
+    const tl = gsap.timeline();
 
     tl.to(this.card, {
       rotationY: 90,

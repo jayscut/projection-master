@@ -14,12 +14,26 @@ export interface ControlsState {
 
 export class Controls {
   private state: ControlsState;
+  private target: HTMLElement;
   private dragStartX = 0;
   private dragStartY = 0;
   private dragStartRotX = 0;
   private dragStartRotY = 0;
+  private boundOnMouseDown: (e: MouseEvent) => void;
+  private boundOnMouseMove: (e: MouseEvent) => void;
+  private boundOnMouseUp: () => void;
+  private boundOnWheel: (e: WheelEvent) => void;
+  private boundOnKeyDown: (e: KeyboardEvent) => void;
 
   constructor(target: HTMLElement) {
+    this.target = target;
+
+    this.boundOnMouseDown = this.onMouseDown.bind(this);
+    this.boundOnMouseMove = this.onMouseMove.bind(this);
+    this.boundOnMouseUp = this.onMouseUp.bind(this);
+    this.boundOnWheel = this.onWheel.bind(this);
+    this.boundOnKeyDown = this.onKeyDown.bind(this);
+
     this.state = {
       rotationX: 0,
       rotationY: 0,
@@ -32,11 +46,11 @@ export class Controls {
       onZoom: () => {},
     };
 
-    target.addEventListener('mousedown', this.onMouseDown.bind(this));
-    window.addEventListener('mousemove', this.onMouseMove.bind(this));
-    window.addEventListener('mouseup', this.onMouseUp.bind(this));
-    target.addEventListener('wheel', this.onWheel.bind(this), { passive: false });
-    window.addEventListener('keydown', this.onKeyDown.bind(this));
+    target.addEventListener('mousedown', this.boundOnMouseDown);
+    window.addEventListener('mousemove', this.boundOnMouseMove);
+    window.addEventListener('mouseup', this.boundOnMouseUp);
+    target.addEventListener('wheel', this.boundOnWheel, { passive: false });
+    window.addEventListener('keydown', this.boundOnKeyDown);
   }
 
   getState(): ControlsState {
@@ -51,6 +65,14 @@ export class Controls {
     this.state.onReset = callbacks.onReset;
     this.state.onHint = callbacks.onHint;
     this.state.onToggleMute = callbacks.onToggleMute;
+  }
+
+  destroy(): void {
+    this.target.removeEventListener('mousedown', this.boundOnMouseDown);
+    window.removeEventListener('mousemove', this.boundOnMouseMove);
+    window.removeEventListener('mouseup', this.boundOnMouseUp);
+    this.target.removeEventListener('wheel', this.boundOnWheel);
+    window.removeEventListener('keydown', this.boundOnKeyDown);
   }
 
   private onMouseDown(e: MouseEvent): void {
