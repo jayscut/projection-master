@@ -1,24 +1,17 @@
-export interface CubeDef {
-  x: number;
-  y: number;
-  z: number;
-}
+export type QuaternionTuple = [number, number, number, number];
 
-export interface MarkerDef {
-  type: 'face' | 'cube';
-  cubeIndex: number;
-  face?: string;
-  color: string;
-}
+export type MarkerDef =
+  | { type: 'face'; cubeIndex: number; face: string; color: string }
+  | { type: 'cube'; cubeIndex: number; color: string };
 
 export interface LevelData {
-  id: number;
-  name: string;
-  cubes: [number, number, number][];
-  targetRotation: [number, number, number, number];
-  startRotation: [number, number, number, number];
-  markers: MarkerDef[];
-  tolerance: number;
+  readonly id: number;
+  readonly name: string;
+  readonly cubes: readonly [number, number, number][];
+  readonly targetRotation: QuaternionTuple;
+  readonly startRotation: QuaternionTuple;
+  readonly markers: readonly MarkerDef[];
+  readonly tolerance: number;
 }
 
 export interface LevelStats {
@@ -29,7 +22,7 @@ export interface LevelStats {
 
 export interface SaveData {
   highestUnlocked: number;
-  levelStats: Record<string, LevelStats>;
+  levelStats: Record<number, LevelStats>;
   muted: boolean;
 }
 
