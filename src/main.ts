@@ -45,6 +45,7 @@ class Game {
   private animationId = 0;
   private lastTime = 0;
   private matchPercent = 0;
+  private startQuat = new THREE.Quaternion();
   private rotationCount = 0;
   private prevRotationX = 0;
   private prevRotationY = 0;
@@ -118,6 +119,12 @@ class Game {
 
     this.playerShape = new Shape(level, 0x00E5FF, 0xFF4081);
     this.playerShape.setRotation(
+      level.startRotation[0],
+      level.startRotation[1],
+      level.startRotation[2],
+      level.startRotation[3]
+    );
+    this.startQuat.set(
       level.startRotation[0],
       level.startRotation[1],
       level.startRotation[2],
@@ -203,7 +210,7 @@ class Game {
 
       const quat = new THREE.Quaternion();
       this.controls.updateRotation(quat);
-      this.playerShape.group.quaternion.copy(quat);
+      this.playerShape.group.quaternion.copy(this.startQuat).multiply(quat);
     }
 
     if (this.targetShape && this.playerShape) {
