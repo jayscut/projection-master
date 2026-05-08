@@ -1,5 +1,6 @@
 import './style.css';
 import { LEVELS } from './levels/data';
+import { consoleTestMatcher } from './matching/matcher';
 
 const appEl = document.getElementById('app');
 if (appEl) appEl.textContent = 'Loading...';
@@ -16,3 +17,5 @@ LEVELS.forEach(l => {
   }
 });
 console.log('Level validation passed');
+
+consoleTestMatcher();
