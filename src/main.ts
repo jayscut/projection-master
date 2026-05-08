@@ -4,8 +4,8 @@ import { LEVELS } from './levels/data';
 const appEl = document.getElementById('app');
 if (appEl) appEl.textContent = 'Loading...';
 
-console.log(`Loaded ${LEVELS.length} levels (partial)`);
-if (LEVELS.length !== 10) throw new Error(`Expected 10 levels, got ${LEVELS.length}`);
+console.log(`Loaded ${LEVELS.length} levels`);
+if (LEVELS.length !== 20) throw new Error(`Expected 20 levels, got ${LEVELS.length}`);
 
 LEVELS.forEach(l => {
   if (l.cubes.length === 0) throw new Error(`Level ${l.id} has no cubes`);
