@@ -1,0 +1,103 @@
+import { LevelData } from '../types';
+
+export const LEVELS: LevelData[] = [
+  // Stage: Tutorial (1 cube)
+  {
+    id: 1,
+    name: '初识立方',
+    cubes: [[0, 0, 0]],
+    targetRotation: [0, 0, 0, 1],
+    startRotation: [0, 0.3827, 0, 0.9239],
+    markers: [],
+    tolerance: 0.12,
+  },
+  {
+    id: 2,
+    name: '旋转初探',
+    cubes: [[0, 0, 0]],
+    targetRotation: [0, 0, 0, 1],
+    startRotation: [0.3536, 0.3536, 0.1464, 0.8536],
+    markers: [],
+    tolerance: 0.12,
+  },
+  {
+    id: 3,
+    name: '方向感',
+    cubes: [[0, 0, 0]],
+    targetRotation: [0, 0, 0, 1],
+    startRotation: [0.5, 0.5, 0.5, 0.5],
+    markers: [
+      { type: 'face', cubeIndex: 0, face: 'top', color: '#FF4081' },
+    ],
+    tolerance: 0.10,
+  },
+  // Stage: Basic (2-3 cubes)
+  {
+    id: 4,
+    name: '双立方',
+    cubes: [[0, 0, 0], [1, 0, 0]],
+    targetRotation: [0, 0, 0, 1],
+    startRotation: [0, 0.5, 0, 0.866],
+    markers: [],
+    tolerance: 0.10,
+  },
+  {
+    id: 5,
+    name: '拐角',
+    cubes: [[0, 0, 0], [1, 0, 0], [0, 1, 0]],
+    targetRotation: [0, 0, 0, 1],
+    startRotation: [0.3, 0.3, 0.3, 0.8367],
+    markers: [],
+    tolerance: 0.09,
+  },
+  {
+    id: 6,
+    name: '标记挑战',
+    cubes: [[0, 0, 0], [1, 0, 0]],
+    targetRotation: [0, 0, 0, 1],
+    startRotation: [0.25, 0.25, 0.25, 0.9014],
+    markers: [
+      { type: 'face', cubeIndex: 1, face: 'top', color: '#FF4081' },
+    ],
+    tolerance: 0.09,
+  },
+  // Stage: Intermediate (4-5 cubes)
+  {
+    id: 7,
+    name: 'L形之谜',
+    cubes: [[0, 0, 0], [0, 1, 0], [0, 2, 0], [1, 0, 0]],
+    targetRotation: [0, 0, 0, 1],
+    startRotation: [0.4, 0.2, 0.6, 0.6633],
+    markers: [],
+    tolerance: 0.08,
+  },
+  {
+    id: 8,
+    name: 'T形挑战',
+    cubes: [[0, 0, 0], [1, 0, 0], [2, 0, 0], [1, 1, 0]],
+    targetRotation: [0, 0, 0, 1],
+    startRotation: [0.35, 0.45, 0.25, 0.7875],
+    markers: [],
+    tolerance: 0.08,
+  },
+  {
+    id: 9,
+    name: '对称陷阱',
+    cubes: [[0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1]],
+    targetRotation: [0, 0, 0, 1],
+    startRotation: [0.45, 0.35, 0.55, 0.6104],
+    markers: [
+      { type: 'cube', cubeIndex: 2, color: '#FF4081' },
+    ],
+    tolerance: 0.08,
+  },
+  {
+    id: 10,
+    name: '立方之星',
+    cubes: [[0, 0, 0], [1, 0, 0], [0, 1, 0], [-1, 0, 0], [0, -1, 0]],
+    targetRotation: [0, 0, 0, 1],
+    startRotation: [0.5, 0.3, 0.4, 0.7071],
+    markers: [],
+    tolerance: 0.08,
+  },
+];
