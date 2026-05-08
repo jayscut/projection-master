@@ -1,3 +1,4 @@
 import './style.css';
 
-document.getElementById('app')!.innerText = 'Loading...';
+const appEl = document.getElementById('app');
+if (appEl) appEl.textContent = 'Loading...';
