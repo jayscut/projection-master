@@ -46,9 +46,8 @@ class Game {
   private lastTime = 0;
   private matchPercent = 0;
   private startQuat = new THREE.Quaternion();
+  private prevQuat = new THREE.Quaternion();
   private rotationCount = 0;
-  private prevRotationX = 0;
-  private prevRotationY = 0;
   private hintActive = false;
   private hintTimer = 0;
   private debugPanel: HTMLElement | null = null; // toggle via URL #debug
@@ -157,28 +156,24 @@ class Game {
       onHint: () => this.showHint(),
       onToggleMute: () => this.toggleMute(),
     });
-    this.prevRotationX = 0;
-    this.prevRotationY = 0;
+    this.prevQuat.identity();
 
     this.hud = new HUD(this.container);
     this.hud.setLevelName(`第 ${String(level.id).padStart(2, '0')} 关 · ${level.name}`);
     this.hud.startTimer();
 
-    this.synth.startAmbient();
-
-    this.lastTime = performance.now();
     this.animate();
   }
 
   private resetRotation(): void {
     if (!this.currentLevel || !this.playerShape) return;
-    const r = this.currentLevel.startRotation;
-    this.playerShape.resetRotation(r[0], r[1], r[2], r[3]);
-    if (this.controls) {
-      const state = this.controls.getState();
-      state.rotationX = 0;
-      state.rotationY = 0;
-    }
+    this.playerShape.resetRotation(
+      this.currentLevel.startRotation[0],
+      this.currentLevel.startRotation[1],
+      this.currentLevel.startRotation[2],
+      this.currentLevel.startRotation[3]
+    );
+    this.controls?.reset();
   }
 
   private showHint(): void {
@@ -211,18 +206,14 @@ class Game {
     if (this.controls && this.playerShape) {
       const ctrl = this.controls.getState();
 
-      const currentRX = ctrl.rotationX;
-      const currentRY = ctrl.rotationY;
-      if (Math.abs(currentRX - this.prevRotationX) > 0.01 ||
-          Math.abs(currentRY - this.prevRotationY) > 0.01) {
-        this.rotationCount++;
-      }
-      this.prevRotationX = currentRX;
-      this.prevRotationY = currentRY;
-
       const quat = new THREE.Quaternion();
       this.controls.updateRotation(quat);
       this.playerShape.group.quaternion.copy(this.startQuat).multiply(quat);
+
+      if (quat.angleTo(this.prevQuat) > 0.005) {
+        this.rotationCount++;
+        this.prevQuat.copy(quat);
+      }
     }
 
     if (this.targetShape && this.playerShape) {
@@ -313,7 +304,6 @@ class Game {
       this.save();
     }
 
-    this.synth.stopAmbient();
     this.synth.playSuccess();
 
     if (this.playerShape) {
@@ -347,7 +337,6 @@ class Game {
     this.ambientParticles?.dispose();
     this.successParticles = null;
     this.ambientParticles = null;
-    this.synth.stopAmbient();
   }
 
   destroy(): void {

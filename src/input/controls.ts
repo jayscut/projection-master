@@ -1,8 +1,20 @@
 import * as THREE from 'three';
 
+const TRACKBALL_RADIUS = 0.8;
+const DRAG_SPEED = 2.5;
+
+function project(x: number, y: number): THREE.Vector3 {
+  const d = Math.sqrt(x * x + y * y);
+  const r = TRACKBALL_RADIUS;
+  if (d < r * 0.7071) {
+    return new THREE.Vector3(x, y, Math.sqrt(r * r - d * d));
+  } else {
+    const t = r / Math.SQRT2;
+    return new THREE.Vector3(x, y, t * t / d);
+  }
+}
+
 export interface ControlsState {
-  rotationX: number;
-  rotationY: number;
   isDragging: boolean;
   mouseX: number;
   mouseY: number;
@@ -15,10 +27,8 @@ export interface ControlsState {
 export class Controls {
   private state: ControlsState;
   private target: HTMLElement;
-  private dragStartX = 0;
-  private dragStartY = 0;
-  private dragStartRotX = 0;
-  private dragStartRotY = 0;
+  private accumulatedQuat = new THREE.Quaternion();
+  private lastPoint = new THREE.Vector3();
   private boundOnMouseDown: (e: MouseEvent) => void;
   private boundOnMouseMove: (e: MouseEvent) => void;
   private boundOnMouseUp: () => void;
@@ -35,8 +45,6 @@ export class Controls {
     this.boundOnKeyDown = this.onKeyDown.bind(this);
 
     this.state = {
-      rotationX: 0,
-      rotationY: 0,
       isDragging: false,
       mouseX: 0,
       mouseY: 0,
@@ -75,25 +83,40 @@ export class Controls {
     window.removeEventListener('keydown', this.boundOnKeyDown);
   }
 
+  reset(): void {
+    this.accumulatedQuat.identity();
+  }
+
+  private normalizeFromEvent(e: MouseEvent): THREE.Vector3 {
+    const rect = this.target.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width * 2 - 1) * (rect.width / rect.height);
+    const y = -((e.clientY - rect.top) / rect.height * 2 - 1);
+    return project(x, y);
+  }
+
   private onMouseDown(e: MouseEvent): void {
     if (e.button !== 0) return;
     this.state.isDragging = true;
-    this.dragStartX = e.clientX;
-    this.dragStartY = e.clientY;
-    this.dragStartRotX = this.state.rotationX;
-    this.dragStartRotY = this.state.rotationY;
+    this.lastPoint.copy(this.normalizeFromEvent(e));
   }
 
   private onMouseMove(e: MouseEvent): void {
     this.state.mouseX = e.clientX;
     this.state.mouseY = e.clientY;
 
-    if (this.state.isDragging) {
-      const dx = e.clientX - this.dragStartX;
-      const dy = e.clientY - this.dragStartY;
-      this.state.rotationX = this.dragStartRotX - dy * 0.005;
-      this.state.rotationY = this.dragStartRotY + dx * 0.005;
-    }
+    if (!this.state.isDragging) return;
+
+    const cur = this.normalizeFromEvent(e);
+    const axis = new THREE.Vector3().crossVectors(this.lastPoint, cur);
+    const len = axis.length();
+    if (len < 1e-6) return;
+
+    const angle = Math.asin(Math.min(len, 1)) * DRAG_SPEED;
+    axis.normalize();
+
+    const delta = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+    this.accumulatedQuat.premultiply(delta);
+    this.lastPoint.copy(cur);
   }
 
   private onMouseUp(): void {
@@ -106,6 +129,7 @@ export class Controls {
   }
 
   private onKeyDown(e: KeyboardEvent): void {
+    const STEP = Math.PI / 8;
     switch (e.key.toUpperCase()) {
       case 'R':
         this.state.onReset();
@@ -116,29 +140,40 @@ export class Controls {
       case 'M':
         this.state.onToggleMute();
         break;
-      case 'ARROWUP':
-        this.state.rotationX -= Math.PI / 8;
+      case 'ARROWUP': {
+        const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -STEP);
+        this.accumulatedQuat.premultiply(q);
         break;
-      case 'ARROWDOWN':
-        this.state.rotationX += Math.PI / 8;
+      }
+      case 'ARROWDOWN': {
+        const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), STEP);
+        this.accumulatedQuat.premultiply(q);
         break;
-      case 'ARROWLEFT':
-        this.state.rotationY -= Math.PI / 8;
+      }
+      case 'ARROWLEFT': {
+        const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -STEP);
+        this.accumulatedQuat.premultiply(q);
         break;
-      case 'ARROWRIGHT':
-        this.state.rotationY += Math.PI / 8;
+      }
+      case 'ARROWRIGHT': {
+        const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), STEP);
+        this.accumulatedQuat.premultiply(q);
         break;
-      case 'Q':
-        this.state.rotationY -= Math.PI / 8;
+      }
+      case 'Q': {
+        const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), STEP);
+        this.accumulatedQuat.premultiply(q);
         break;
-      case 'E':
-        this.state.rotationY += Math.PI / 8;
+      }
+      case 'E': {
+        const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -STEP);
+        this.accumulatedQuat.premultiply(q);
         break;
+      }
     }
   }
 
   updateRotation(shapeRotation: THREE.Quaternion): void {
-    const euler = new THREE.Euler(this.state.rotationX, this.state.rotationY, 0, 'YXZ');
-    shapeRotation.setFromEuler(euler);
+    shapeRotation.copy(this.accumulatedQuat);
   }
 }
