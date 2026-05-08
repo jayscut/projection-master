@@ -37,6 +37,7 @@ export class Shape {
   }
 
   getCorners(): THREE.Vector3[] {
+    this.group.updateMatrixWorld();
     const corners: THREE.Vector3[] = [];
     for (const pos of this.cubePositions) {
       const localCorners = getCubeCorners(pos);
