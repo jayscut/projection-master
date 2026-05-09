@@ -435,6 +435,14 @@ class Game {
     return 0;
   }
 
+  private getTotalStars(): number {
+    let total = 0;
+    for (const key of Object.keys(this.saveData.levelStats)) {
+      total += this.saveData.levelStats[Number(key)].stars;
+    }
+    return total;
+  }
+
   private showResult(levelName: string, levelId: number): void {
     const result = new ResultPanel(this.container, {
       stars: this.getStars(),
