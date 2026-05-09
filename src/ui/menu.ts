@@ -1,7 +1,7 @@
 import { SaveData } from '../types';
 
 export class Menu {
-  private container: HTMLElement;
+  public container: HTMLElement;
   private onLevelSelect: (levelId: number) => void = () => {};
   private save: SaveData;
 
@@ -73,6 +73,7 @@ export class Menu {
     const size = isNarrow ? '56px' : '80px';
     const fontSize = isNarrow ? '16px' : '20px';
 
+    card.className = 'level-card';
     card.textContent = String(id);
     card.style.cssText = `
       width: ${size};

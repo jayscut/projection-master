@@ -8,6 +8,7 @@ export interface ResultData {
 export class ResultPanel {
   private container: HTMLElement;
   private onNext: () => void = () => {};
+  private onBack: () => void = () => {};
 
   constructor(parent: HTMLElement, data: ResultData) {
     this.container = document.createElement('div');
@@ -66,8 +67,43 @@ export class ResultPanel {
       animation-delay: 0.7s;
     `;
 
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = `
+      display: flex;
+      gap: 16px;
+      animation: slideUp 0.4s ease both;
+      animation-delay: 0.9s;
+    `;
+
+    const backBtn = document.createElement('button');
+    backBtn.textContent = '返回选关';
+    backBtn.style.cssText = `
+      padding: 10px 24px;
+      font-family: var(--font-display);
+      font-size: 14px;
+      color: var(--text-dim);
+      background: transparent;
+      border: 1px solid var(--text-dim);
+      border-radius: 6px;
+      cursor: pointer;
+      letter-spacing: 3px;
+      transition: border-color 0.2s, color 0.2s;
+    `;
+    backBtn.addEventListener('mouseenter', () => {
+      backBtn.style.borderColor = 'var(--cyan)';
+      backBtn.style.color = 'var(--cyan)';
+    });
+    backBtn.addEventListener('mouseleave', () => {
+      backBtn.style.borderColor = 'var(--text-dim)';
+      backBtn.style.color = 'var(--text-dim)';
+    });
+    backBtn.addEventListener('click', () => {
+      this.remove();
+      this.onBack();
+    });
+
     const nextBtn = document.createElement('button');
-    nextBtn.textContent = data.levelId >= 20 ? '返回' : '下一关';
+    nextBtn.textContent = data.levelId >= 20 ? '通关完成' : '下一关';
     nextBtn.style.cssText = `
       padding: 10px 36px;
       font-family: var(--font-display);
@@ -79,8 +115,6 @@ export class ResultPanel {
       cursor: pointer;
       letter-spacing: 4px;
       transition: box-shadow 0.2s;
-      animation: slideUp 0.4s ease both;
-      animation-delay: 0.9s;
     `;
     nextBtn.addEventListener('mouseenter', () => {
       nextBtn.style.boxShadow = '0 0 20px rgba(0, 229, 255, 0.5)';
@@ -93,15 +127,24 @@ export class ResultPanel {
       this.onNext();
     });
 
+    btnRow.appendChild(backBtn);
+    if (data.levelId < 20) {
+      btnRow.appendChild(nextBtn);
+    }
+
     this.container.appendChild(levelLabel);
     this.container.appendChild(starsDiv);
     this.container.appendChild(scoreLabel);
-    this.container.appendChild(nextBtn);
+    this.container.appendChild(btnRow);
     parent.appendChild(this.container);
   }
 
   setOnNext(callback: () => void): void {
     this.onNext = callback;
+  }
+
+  setOnBack(callback: () => void): void {
+    this.onBack = callback;
   }
 
   remove(): void {

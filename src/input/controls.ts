@@ -40,6 +40,12 @@ export class Controls {
   private screenUp = new THREE.Vector3();
   private screenForward = new THREE.Vector3();
   private pressedKeys = new Set<string>();
+  private targetQuat = new THREE.Quaternion();
+  private targetDragStartQuat = new THREE.Quaternion();
+  private targetDragStartX = 0;
+  private targetDragStartY = 0;
+  private isTargetDragging = false;
+  private targetNeedsSnap = false;
   private boundOnMouseDown: (e: MouseEvent) => void;
   private boundOnMouseMove: (e: MouseEvent) => void;
   private boundOnMouseUp: () => void;
@@ -124,6 +130,24 @@ export class Controls {
 
   reset(): void {
     this.accumulatedQuat.identity();
+    this.targetQuat.identity();
+  }
+
+  getTargetQuat(target: THREE.Quaternion): void {
+    target.copy(this.targetQuat);
+  }
+
+  needsTargetSnap(): boolean {
+    return this.targetNeedsSnap;
+  }
+
+  isDraggingTarget(): boolean {
+    return this.isTargetDragging;
+  }
+
+  consumeTargetSnap(): void {
+    this.targetNeedsSnap = false;
+    this.targetQuat.identity();
   }
 
   update(dt: number): void {
@@ -167,18 +191,41 @@ export class Controls {
     };
   }
 
+  private isInLeftHalf(clientX: number): boolean {
+    const rect = this.target.getBoundingClientRect();
+    return (clientX - rect.left) < rect.width / 2;
+  }
+
   private startDrag(clientX: number, clientY: number): void {
-    this.inertiaActive = false;
-    this.state.isDragging = true;
-    this.dragStartQuat.copy(this.accumulatedQuat);
-    const p = this.normalizePos(clientX, clientY);
-    this.dragStartX = p.x;
-    this.dragStartY = p.y;
-    this.lastDragX = p.x;
-    this.lastDragY = p.y;
+    if (this.isInLeftHalf(clientX)) {
+      this.isTargetDragging = true;
+      this.targetNeedsSnap = false;
+      this.targetDragStartQuat.copy(this.targetQuat);
+      const p = this.normalizePos(clientX, clientY);
+      this.targetDragStartX = p.x;
+      this.targetDragStartY = p.y;
+    } else {
+      this.inertiaActive = false;
+      this.state.isDragging = true;
+      this.dragStartQuat.copy(this.accumulatedQuat);
+      const p = this.normalizePos(clientX, clientY);
+      this.dragStartX = p.x;
+      this.dragStartY = p.y;
+      this.lastDragX = p.x;
+      this.lastDragY = p.y;
+    }
   }
 
   private continueDrag(clientX: number, clientY: number): void {
+    if (this.isTargetDragging) {
+      const p = this.normalizePos(clientX, clientY);
+      const dx = p.x - this.targetDragStartX;
+      const dy = p.y - this.targetDragStartY;
+      const qY = new THREE.Quaternion().setFromAxisAngle(this.screenUp, dx * DRAG_SPEED);
+      const qX = new THREE.Quaternion().setFromAxisAngle(this.screenRight, -dy * DRAG_SPEED);
+      this.targetQuat.copy(qY).multiply(qX).multiply(this.targetDragStartQuat);
+      return;
+    }
     if (!this.state.isDragging) return;
     const p = this.normalizePos(clientX, clientY);
     this.inertiaVelX = p.x - this.lastDragX;
@@ -213,6 +260,11 @@ export class Controls {
   }
 
   private onMouseUp(): void {
+    if (this.isTargetDragging) {
+      this.isTargetDragging = false;
+      this.targetNeedsSnap = true;
+      return;
+    }
     this.state.isDragging = false;
     const speed = this.inertiaVelX * this.inertiaVelX + this.inertiaVelY * this.inertiaVelY;
     if (speed > INERTIA_THRESHOLD) {
@@ -227,6 +279,7 @@ export class Controls {
       this.state.mouseY = e.touches[0].clientY;
       this.startDrag(e.touches[0].clientX, e.touches[0].clientY);
     } else if (e.touches.length === 2) {
+      this.isTargetDragging = false;
       this.state.isDragging = false;
       this.lastTouchAngle = this.getTouchAngle(e);
     }
@@ -239,6 +292,7 @@ export class Controls {
       this.state.mouseY = e.touches[0].clientY;
       this.continueDrag(e.touches[0].clientX, e.touches[0].clientY);
     } else if (e.touches.length === 2) {
+      this.isTargetDragging = false; // two-finger is only for player
       const angle = this.getTouchAngle(e);
       const delta = angle - this.lastTouchAngle;
       this.lastTouchAngle = angle;
@@ -249,6 +303,11 @@ export class Controls {
   }
 
   private onTouchEnd(e: TouchEvent): void {
+    if (this.isTargetDragging && e.touches.length === 0) {
+      this.isTargetDragging = false;
+      this.targetNeedsSnap = true;
+      return;
+    }
     if (e.touches.length === 0) {
       this.state.isDragging = false;
       this.lastTouchAngle = 0;

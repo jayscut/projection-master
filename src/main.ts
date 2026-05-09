@@ -18,6 +18,7 @@ import { ParticleSystem, AmbientParticles } from './effects/particles';
 import { animateSuccessBurst, animateShapeAssemble } from './effects/animations';
 import { HUD } from './ui/hud';
 import { CardFlip } from './ui/card';
+import { Home } from './ui/home';
 import { Menu } from './ui/menu';
 import { ResultPanel } from './ui/result';
 
@@ -41,18 +42,22 @@ class Game {
   private ambientParticles: AmbientParticles | null = null;
   private hud: HUD | null = null;
   private currentLevel: LevelData | null = null;
-  private state: GameState = 'MENU';
+  private state: GameState = 'HOME';
   private saveData: SaveData;
+  private home: Home | null = null;
   private menu: Menu | null = null;
   private animationId = 0;
   private lastTime = 0;
   private matchPercent = 0;
+  private lastMatchPercent = 0;
   private startQuat = new THREE.Quaternion();
   private prevQuat = new THREE.Quaternion();
   private rotationCount = 0;
   private hintActive = false;
   private hintTimer = 0;
   private prevStars = 0;
+  private targetBaseQuat = new THREE.Quaternion();
+  private targetSnapping = false;
   private debugPanel: HTMLElement | null = null; // toggle via URL #debug
 
   constructor() {
@@ -89,13 +94,34 @@ class Game {
   }
 
   start(): void {
-    this.showMenu();
+    this.showHome();
   }
 
-  private showMenu(): void {
+  private showHome(): void {
+    this.state = 'HOME';
+    this.cleanup();
+    this.home = new Home(this.container);
+    this.home.setOnStart(() => {
+      this.showMenu(true);
+    });
+  }
+
+  private showMenu(animated = false): void {
     this.state = 'MENU';
     this.cleanup();
     this.menu = new Menu(this.container, this.saveData);
+
+    if (animated) {
+      this.menu.container.style.animation = 'fadeIn 0.5s ease both';
+      const cards = this.menu.container.querySelectorAll('.level-card');
+      cards.forEach((card, i) => {
+        (card as HTMLElement).style.animation = 'none';
+        void (card as HTMLElement).offsetWidth;
+        (card as HTMLElement).style.animation = `cardStaggerIn 0.4s ease both`;
+        (card as HTMLElement).style.animationDelay = `${0.3 + i * 0.04}s`;
+      });
+    }
+
     this.menu.setOnLevelSelect((id) => {
       this.synth.playUIClick();
       this.startLevel(id);
@@ -140,6 +166,12 @@ class Game {
       level.targetRotation[2],
       level.targetRotation[3]
     );
+    this.targetBaseQuat.set(
+      level.targetRotation[0],
+      level.targetRotation[1],
+      level.targetRotation[2],
+      level.targetRotation[3]
+    );
     addShapeToScene(this.targetViewport.scene, this.targetShape);
 
     this.playerShape = new Shape(level, 0x00E5FF, 0xFFFFFF);
@@ -172,7 +204,17 @@ class Game {
     });
     this.prevQuat.identity();
 
-    this.hud = new HUD(this.container);
+    this.lastMatchPercent = 0;
+
+    this.hud = new HUD(this.container, () => {
+      if (this.lastMatchPercent > 0) {
+        this.showBackConfirm(() => {
+          this.showMenu();
+        });
+      } else {
+        this.showMenu();
+      }
+    });
     this.hud.setOnConfirm(() => this.confirmSuccess());
 
     // Intro animations
@@ -254,10 +296,13 @@ class Game {
     }
 
     if (this.targetShape && this.playerShape) {
+      const savedTargetQuat = this.targetShape.group.quaternion.clone();
+      this.targetShape.group.quaternion.copy(this.targetBaseQuat);
       const targetCorners = this.targetShape.getCorners();
       const playerCorners = this.playerShape.getCorners();
       const targetMarkers = this.targetShape.getMarkerPoints();
       const playerMarkers = this.playerShape.getMarkerPoints();
+      this.targetShape.group.quaternion.copy(savedTargetQuat);
       const tolerance = this.currentLevel?.tolerance ?? 0.08;
       this.matchPercent = computeMatchScore(
         targetCorners, playerCorners, targetMarkers, playerMarkers, tolerance
@@ -294,6 +339,43 @@ class Game {
       }
     }
 
+    // Target peek rotation + snapback
+    if (this.controls && this.targetShape) {
+      if (this.controls.isDraggingTarget()) {
+        this.targetSnapping = false;
+        gsap.killTweensOf(this.targetShape!.group.quaternion);
+      }
+
+      const targetOffset = new THREE.Quaternion();
+      this.controls.getTargetQuat(targetOffset);
+
+      if (!this.targetSnapping) {
+        if (this.controls.needsTargetSnap()) {
+          this.controls.consumeTargetSnap();
+          this.targetSnapping = true;
+          const fromQuat = targetOffset.clone();
+          const snapObj = { t: 0 };
+          gsap.to(snapObj, {
+            t: 1,
+            duration: 0.5,
+            ease: 'elastic.out(1, 0.5)',
+            onUpdate: () => {
+              this.targetShape!.group.quaternion
+                .slerpQuaternions(fromQuat, new THREE.Quaternion(), snapObj.t)
+                .multiply(this.targetBaseQuat);
+            },
+            onComplete: () => {
+              this.targetShape!.group.quaternion.copy(this.targetBaseQuat);
+              this.targetSnapping = false;
+            },
+          });
+        } else {
+          this.targetShape.group.quaternion.copy(targetOffset).multiply(this.targetBaseQuat);
+        }
+      }
+    }
+
+    this.lastMatchPercent = this.matchPercent;
     this.hud?.setMatchPercent(this.matchPercent);
 
     // Threshold particle burst when stars increase
@@ -377,6 +459,9 @@ class Game {
       levelId,
       matchPercent: this.matchPercent,
     });
+    result.setOnBack(() => {
+      this.showMenu();
+    });
     result.setOnNext(() => {
       result.remove();
       const nextId = levelId + 1;
@@ -386,6 +471,77 @@ class Game {
         this.showMenu();
       }
     });
+  }
+
+  private showBackConfirm(onConfirm: () => void): void {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+      position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(10,10,26,0.85); z-index: 40;
+      animation: fadeIn 0.2s ease;
+    `;
+
+    const box = document.createElement('div');
+    box.style.cssText = `
+      background: var(--bg-mid);
+      border: 1px solid var(--cyan);
+      border-radius: 12px;
+      padding: 24px 36px;
+      text-align: center;
+      animation: slideUp 0.3s ease;
+      max-width: 320px;
+    `;
+
+    const msg = document.createElement('div');
+    msg.textContent = '确定放弃当前进度？';
+    msg.style.cssText = `
+      font-family: var(--font-mono);
+      font-size: 15px;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+    `;
+
+    const btnRow = document.createElement('div');
+    btnRow.style.cssText = 'display: flex; gap: 12px; justify-content: center;';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = '取消';
+    cancelBtn.style.cssText = `
+      padding: 8px 24px;
+      font-family: var(--font-display);
+      font-size: 13px;
+      color: var(--text-dim);
+      background: transparent;
+      border: 1px solid var(--text-dim);
+      border-radius: 6px;
+      cursor: pointer;
+    `;
+    cancelBtn.addEventListener('click', () => overlay.remove());
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = '确定';
+    confirmBtn.style.cssText = `
+      padding: 8px 24px;
+      font-family: var(--font-display);
+      font-size: 13px;
+      color: var(--bg-deep);
+      background: var(--pink);
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    `;
+    confirmBtn.addEventListener('click', () => {
+      overlay.remove();
+      onConfirm();
+    });
+
+    btnRow.appendChild(cancelBtn);
+    btnRow.appendChild(confirmBtn);
+    box.appendChild(msg);
+    box.appendChild(btnRow);
+    overlay.appendChild(box);
+    this.container.appendChild(overlay);
   }
 
   private cleanup(): void {
@@ -400,6 +556,7 @@ class Game {
 
     this.hud?.remove();
     this.menu?.remove();
+    this.home?.destroy();
 
     this.controls?.destroy();
     this.targetShape = null;
@@ -407,6 +564,7 @@ class Game {
     this.controls = null;
     this.hud = null;
     this.menu = null;
+    this.home = null;
     this.successParticles?.dispose();
     this.ambientParticles?.dispose();
     this.successParticles = null;

@@ -10,14 +10,17 @@ export class HUD {
   private matchEl: HTMLElement;
   private starsEl: HTMLElement;
   private confirmBtn: HTMLButtonElement;
+  private backBtn: HTMLButtonElement;
   private progressBar: HTMLElement;
   private progressFill: HTMLElement;
   private onConfirm: () => void = () => {};
+  private onBack: () => void = () => {};
   private lastRawPct = -1;
   private confirmVisible = false;
   private confirmFirstShown = false;
 
-  constructor(parent: HTMLElement) {
+  constructor(parent: HTMLElement, onBackCb?: () => void) {
+    if (onBackCb) this.onBack = onBackCb;
     const isNarrow = parent.clientWidth < 480;
     const h = isNarrow ? '52px' : '66px';
 
@@ -61,6 +64,37 @@ export class HUD {
     this.progressBar.appendChild(this.progressFill);
     this.container.appendChild(this.progressBar);
 
+    this.backBtn = document.createElement('button');
+    this.backBtn.textContent = '\u2190';
+    this.backBtn.title = '返回选关';
+    this.backBtn.style.cssText = `
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      color: var(--cyan);
+      background: rgba(22, 33, 62, 0.7);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background 0.2s, box-shadow 0.2s;
+      z-index: 15;
+    `;
+    this.backBtn.addEventListener('mouseenter', () => {
+      this.backBtn.style.background = 'rgba(0, 229, 255, 0.15)';
+      this.backBtn.style.boxShadow = '0 0 12px rgba(0, 229, 255, 0.3)';
+    });
+    this.backBtn.addEventListener('mouseleave', () => {
+      this.backBtn.style.background = 'rgba(22, 33, 62, 0.7)';
+      this.backBtn.style.boxShadow = 'none';
+    });
+    this.backBtn.addEventListener('click', () => this.onBack());
+
     const row = document.createElement('div');
     row.style.cssText = `
       display: flex;
@@ -101,6 +135,7 @@ export class HUD {
     row.appendChild(this.starsEl);
     row.appendChild(this.confirmBtn);
     this.container.appendChild(row);
+    this.container.appendChild(this.backBtn);
     parent.appendChild(this.container);
   }
 

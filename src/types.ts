@@ -25,7 +25,7 @@ export interface SaveData {
   muted: boolean;
 }
 
-export type GameState = 'MENU' | 'CARD_FLIP' | 'PLAYING' | 'SUCCESS';
+export type GameState = 'HOME' | 'MENU' | 'CARD_FLIP' | 'PLAYING' | 'SUCCESS';
 
 export const ISOMETRIC_ANGLE = {
   elevation: Math.atan(Math.SQRT1_2),
