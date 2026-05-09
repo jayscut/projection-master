@@ -219,10 +219,10 @@ export class Controls {
   private continueDrag(clientX: number, clientY: number): void {
     if (this.isTargetDragging) {
       const p = this.normalizePos(clientX, clientY);
-      const dx = p.x - this.targetDragStartX;
-      const dy = p.y - this.targetDragStartY;
-      const qY = new THREE.Quaternion().setFromAxisAngle(this.screenUp, dx * DRAG_SPEED);
-      const qX = new THREE.Quaternion().setFromAxisAngle(this.screenRight, -dy * DRAG_SPEED);
+      const dx = this.targetDragStartX - p.x;
+      const dy = this.targetDragStartY - p.y;
+      const qY = new THREE.Quaternion().setFromAxisAngle(this.screenUp, -dx * DRAG_SPEED);
+      const qX = new THREE.Quaternion().setFromAxisAngle(this.screenRight, +dy * DRAG_SPEED);
       this.targetQuat.copy(qY).multiply(qX).multiply(this.targetDragStartQuat);
       return;
     }
@@ -233,8 +233,8 @@ export class Controls {
     this.lastDragX = p.x;
     this.lastDragY = p.y;
 
-    const dx = p.x - this.dragStartX;
-    const dy = p.y - this.dragStartY;
+    const dx = this.dragStartX - p.x;
+    const dy = this.dragStartY - p.y;
 
     const qY = new THREE.Quaternion().setFromAxisAngle(this.screenUp, -dx * DRAG_SPEED);
     const qX = new THREE.Quaternion().setFromAxisAngle(this.screenRight, dy * DRAG_SPEED);
