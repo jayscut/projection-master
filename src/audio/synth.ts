@@ -107,6 +107,50 @@ export class Synth {
     });
   }
 
+  playVictoryChime(noteIndex: number): void {
+    const ctx = this.ensureContext();
+    if (this.muted) return;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.value = 220 + noteIndex * 30;
+
+    gain.gain.setValueAtTime(0.07, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.8);
+  }
+
+  playVictoryFanfare(): void {
+    const ctx = this.ensureContext();
+    if (this.muted) return;
+
+    const notes = [261.63, 329.63, 392.00, 523.25, 659.25, 784.00];
+
+    notes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle';
+      osc.frequency.value = freq;
+
+      const startTime = ctx.currentTime + i * 0.25;
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(0.08, startTime + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.6);
+
+      osc.connect(gain);
+      gain.connect(this.masterGain);
+      osc.start(startTime);
+      osc.stop(startTime + 0.6);
+    });
+  }
+
   playUIClick(): void {
     const ctx = this.ensureContext();
     if (this.muted) return;
