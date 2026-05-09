@@ -57,7 +57,7 @@ class Game {
   private _tmpQuat = new THREE.Quaternion();
   private _tmpQuat2 = new THREE.Quaternion();
   private _matchCounter = 0;
-  private _lastTickTime = 0;
+  private _nextTickTime = 0;
   private _lastW = 0;
   private _lastH = 0;
   private _playerMeshes: THREE.Mesh[] = [];
@@ -215,7 +215,7 @@ class Game {
     };
 
     this._matchCounter = 0;
-    this._lastTickTime = 0;
+    this._nextTickTime = 0;
     this._lastW = 0;
     this._lastH = 0;
 
@@ -370,8 +370,8 @@ class Game {
       this.successParticles?.burst(new THREE.Vector3(0, 0, 0), 1.5, [0.2, 0.5]);
     }
 
-    if (this.matchPercent > 0.5 && now - this._lastTickTime > 300) {
-      this._lastTickTime = now;
+    if (this.matchPercent > 0.5 && now > this._nextTickTime) {
+      this._nextTickTime = now + Math.max(500*(1.0-this.matchPercent), 50);
       this.synth.playMatchTick(this.matchPercent);
     }
 

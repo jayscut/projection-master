@@ -209,8 +209,16 @@ export class Controls {
     return (clientX - rect.left) < rect.width / 2;
   }
 
+  private isInTopHalf(clientY: number): boolean {
+    const rect = this.getRect();
+    return (clientY - rect.top) < rect.height / 2;
+  }
+
   private startDrag(clientX: number, clientY: number): void {
-    if (this.isInLeftHalf(clientX)) {
+    const rect = this.getRect();
+    const isNarrow = rect.width < 768;
+
+    if (isNarrow ? !this.isInTopHalf(clientY) : this.isInLeftHalf(clientX)) {
       this.isTargetDragging = true;
       this.targetNeedsSnap = false;
       this.targetDragStartQuat.copy(this.targetQuat);

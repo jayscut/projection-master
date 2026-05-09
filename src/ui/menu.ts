@@ -71,19 +71,21 @@ export class Menu {
     const card = document.createElement('div');
     const isUnlocked = id <= this.save.highestUnlocked;
     const isCompleted = this.save.levelStats[id]?.completed;
+    const stats = this.save.levelStats[id];
     const size = isNarrow ? '56px' : '80px';
-    const fontSize = isNarrow ? '16px' : '20px';
+    const numSize = isNarrow ? '15px' : '20px';
+    const starSize = isNarrow ? '9px' : '13px';
 
     card.className = 'level-card';
-    card.textContent = String(id);
     card.style.cssText = `
       width: ${size};
       height: ${size};
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
+      gap: ${isNarrow ? '1px' : '3px'};
       font-family: var(--font-display);
-      font-size: ${fontSize};
       border-radius: 8px;
       cursor: ${isUnlocked ? 'pointer' : 'not-allowed'};
       transition: transform 0.2s, box-shadow 0.2s;
@@ -99,9 +101,35 @@ export class Menu {
       opacity: ${isUnlocked ? 1 : 0.4};
     `;
 
-    const stats = this.save.levelStats[id];
-    if (stats?.completed) {
-      card.title = `\u2605\u2605\u2605`.slice(0, stats.stars) + '\u2606\u2606\u2606'.slice(stats.stars);
+    const numSpan = document.createElement('span');
+    numSpan.textContent = String(id);
+    numSpan.style.cssText = `
+      font-size: ${numSize};
+      line-height: 1;
+      transition: color 0.2s;
+    `;
+    card.appendChild(numSpan);
+
+    if (isCompleted && stats) {
+      const starsRow = document.createElement('span');
+      starsRow.style.cssText = `
+        display: flex;
+        gap: 1px;
+        line-height: 1;
+      `;
+      for (let i = 0; i < 3; i++) {
+        const s = document.createElement('span');
+        s.textContent = i < stats.stars ? '\u2605' : '\u2606';
+        s.style.cssText = `
+          font-size: ${starSize};
+          color: ${i < stats.stars ? '#FFD700' : 'rgba(85,85,119,0.5)'};
+          text-shadow: ${i < stats.stars ? '0 0 6px rgba(255,215,0,0.6)' : 'none'};
+        `;
+        starsRow.appendChild(s);
+      }
+      card.appendChild(starsRow);
+
+      card.title = '\u2605'.repeat(stats.stars) + '\u2606'.repeat(3 - stats.stars);
     }
 
     if (isUnlocked) {
