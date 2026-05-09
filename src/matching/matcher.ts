@@ -82,26 +82,3 @@ export function computeMatchScore(
 
   return cornerScore * faceScore;
 }
-
-export function consoleTestMatcher(): void {
-  const target = [new THREE.Vector3(0, 0, 0)];
-  const player = [new THREE.Vector3(0, 0, 0)];
-  const score = computeMatchScore(target, player, [], [], 0.1);
-  console.log('Perfect match score:', score);
-  if (score < 0.99) throw new Error('Perfect match should be ~1.0');
-
-  const rotated = [new THREE.Vector3(1, 0, 0)];
-  const bad = [new THREE.Vector3(0, 0, 0)];
-  const badScore = computeMatchScore(rotated, bad, [], [], 0.1);
-  console.log('Bad match score:', badScore);
-  if (badScore > 0.01) throw new Error('Bad match should be near 0');
-
-  const faceTarget = [new THREE.Vector3(0, 0.5, 0)];
-  const facePlayer = [new THREE.Vector3(0, -0.5, 0)];
-  const dummyCorners = [new THREE.Vector3(0, 0, 0)];
-  const faceScore = computeMatchScore(dummyCorners, dummyCorners, faceTarget, facePlayer, 0.1);
-  console.log('Face mismatch score:', faceScore);
-  if (faceScore > 0.01) throw new Error('Face mismatch should be near 0');
-
-  console.log('Matcher self-test passed');
-}

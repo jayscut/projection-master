@@ -49,16 +49,18 @@ class Game {
   private animationId = 0;
   private lastTime = 0;
   private matchPercent = 0;
-  private lastMatchPercent = 0;
   private startQuat = new THREE.Quaternion();
-  private prevQuat = new THREE.Quaternion();
-  private rotationCount = 0;
-  private hintActive = false;
-  private hintTimer = 0;
   private prevStars = 0;
   private targetBaseQuat = new THREE.Quaternion();
   private targetSnapping = false;
-  private debugPanel: HTMLElement | null = null; // toggle via URL #debug
+  private debugPanel: HTMLElement | null = null;
+  private _tmpQuat = new THREE.Quaternion();
+  private _tmpQuat2 = new THREE.Quaternion();
+  private _matchCounter = 0;
+  private _lastTickTime = 0;
+  private _lastW = 0;
+  private _lastH = 0;
+  private _playerMeshes: THREE.Mesh[] = [];
 
   constructor() {
     this.container = document.getElementById('app')!;
@@ -135,9 +137,6 @@ class Game {
     this.currentLevel = level;
     this.state = 'CARD_FLIP';
     this.matchPercent = 0;
-    this.rotationCount = 0;
-    this.hintActive = false;
-    this.hintTimer = 0;
     this.cleanup();
 
     const card = new CardFlip(this.container, level.name);
@@ -198,16 +197,30 @@ class Game {
     const canvas = this.renderer.domElement;
     this.controls = new Controls(canvas, this.playerViewport.camera);
     this.controls.setCallbacks({
-      onReset: () => this.resetRotation(),
-      onHint: () => this.showHint(),
+      onReset: () => {
+        if (!this.currentLevel || !this.playerShape) return;
+        this.playerShape.setRotation(
+          this.currentLevel.startRotation[0],
+          this.currentLevel.startRotation[1],
+          this.currentLevel.startRotation[2],
+          this.currentLevel.startRotation[3]
+        );
+        this.controls?.reset();
+      },
+      onHint: () => {},
       onToggleMute: () => this.toggleMute(),
     });
-    this.prevQuat.identity();
+    this.controls.getState().onZoom = (delta: number) => {
+      zoomViewport(this.playerViewport, delta);
+    };
 
-    this.lastMatchPercent = 0;
+    this._matchCounter = 0;
+    this._lastTickTime = 0;
+    this._lastW = 0;
+    this._lastH = 0;
 
     this.hud = new HUD(this.container, () => {
-      if (this.lastMatchPercent > 0) {
+      if (this.matchPercent > 0) {
         this.showBackConfirm(() => {
           this.showMenu();
         });
@@ -221,7 +234,14 @@ class Game {
     animateShapeAssemble(this.targetShape!.group);
     requestAnimationFrame(() => animateShapeAssemble(this.playerShape!.group));
 
-    // Opacity breathing glow on player shape faces (visual only)
+    this._playerMeshes = [];
+    this.playerShape!.group.traverse((child) => {
+      if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
+        const mat = child.material as THREE.MeshBasicMaterial;
+        if (mat.opacity < 0.3) this._playerMeshes.push(child);
+      }
+    });
+
     const breatheObj = { val: 0.13 };
     gsap.to(breatheObj, {
       val: 0.22,
@@ -230,34 +250,15 @@ class Game {
       repeat: -1,
       ease: 'sine.inOut',
       onUpdate: () => {
-        if (!this.playerShape) return;
-        this.playerShape.group.traverse((child) => {
-          if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
-            const mat = child.material as THREE.MeshBasicMaterial;
-            if (mat.opacity < 0.3) mat.opacity = breatheObj.val;
-          }
-        });
+        for (const mesh of this._playerMeshes) {
+          (mesh.material as THREE.MeshBasicMaterial).opacity = breatheObj.val;
+        }
       },
     });
 
     this.prevStars = 0;
+    this.lastTime = performance.now();
     this.animate();
-  }
-
-  private resetRotation(): void {
-    if (!this.currentLevel || !this.playerShape) return;
-    this.playerShape.resetRotation(
-      this.currentLevel.startRotation[0],
-      this.currentLevel.startRotation[1],
-      this.currentLevel.startRotation[2],
-      this.currentLevel.startRotation[3]
-    );
-    this.controls?.reset();
-  }
-
-  private showHint(): void {
-    this.hintActive = true;
-    this.hintTimer = 1.0;
   }
 
   private toggleMute(): void {
@@ -284,18 +285,13 @@ class Game {
 
     if (this.controls && this.playerShape) {
       this.controls.update(dt);
-
-      const quat = new THREE.Quaternion();
-      this.controls.updateRotation(quat);
-      this.playerShape.group.quaternion.copy(quat).multiply(this.startQuat);
-
-      if (quat.angleTo(this.prevQuat) > 0.005) {
-        this.rotationCount++;
-        this.prevQuat.copy(quat);
-      }
+      this.controls.updateRotation(this._tmpQuat);
+      this.playerShape.group.quaternion.copy(this._tmpQuat).multiply(this.startQuat);
     }
 
-    if (this.targetShape && this.playerShape) {
+    this._matchCounter++;
+    if (this._matchCounter >= 3 && this.targetShape && this.playerShape) {
+      this._matchCounter = 0;
       const savedTargetQuat = this.targetShape.group.quaternion.clone();
       this.targetShape.group.quaternion.copy(this.targetBaseQuat);
       const targetCorners = this.targetShape.getCorners();
@@ -332,28 +328,19 @@ class Game {
       }
     }
 
-    if (this.hintActive) {
-      this.hintTimer -= dt;
-      if (this.hintTimer <= 0) {
-        this.hintActive = false;
-      }
-    }
-
-    // Target peek rotation + snapback
     if (this.controls && this.targetShape) {
       if (this.controls.isDraggingTarget()) {
         this.targetSnapping = false;
         gsap.killTweensOf(this.targetShape!.group.quaternion);
       }
 
-      const targetOffset = new THREE.Quaternion();
-      this.controls.getTargetQuat(targetOffset);
+      this.controls.getTargetQuat(this._tmpQuat);
 
       if (!this.targetSnapping) {
         if (this.controls.needsTargetSnap()) {
           this.controls.consumeTargetSnap();
           this.targetSnapping = true;
-          const fromQuat = targetOffset.clone();
+          const fromQuat = this._tmpQuat.clone();
           const snapObj = { t: 0 };
           gsap.to(snapObj, {
             t: 1,
@@ -361,7 +348,7 @@ class Game {
             ease: 'elastic.out(1, 0.5)',
             onUpdate: () => {
               this.targetShape!.group.quaternion
-                .slerpQuaternions(fromQuat, new THREE.Quaternion(), snapObj.t)
+                .slerpQuaternions(fromQuat, this._tmpQuat2.identity(), snapObj.t)
                 .multiply(this.targetBaseQuat);
             },
             onComplete: () => {
@@ -370,22 +357,21 @@ class Game {
             },
           });
         } else {
-          this.targetShape.group.quaternion.copy(targetOffset).multiply(this.targetBaseQuat);
+          this.targetShape.group.quaternion.copy(this._tmpQuat).multiply(this.targetBaseQuat);
         }
       }
     }
 
-    this.lastMatchPercent = this.matchPercent;
     this.hud?.setMatchPercent(this.matchPercent);
 
-    // Threshold particle burst when stars increase
     const stars = this.getStars();
     if (stars > 0 && stars > this.prevStars && this.playerShape) {
       this.prevStars = stars;
       this.successParticles?.burst(new THREE.Vector3(0, 0, 0), 1.5, [0.2, 0.5]);
     }
 
-    if (this.matchPercent > 0.5) {
+    if (this.matchPercent > 0.5 && now - this._lastTickTime > 300) {
+      this._lastTickTime = now;
       this.synth.playMatchTick(this.matchPercent);
     }
 
@@ -395,13 +381,10 @@ class Game {
     }
     this.successParticles?.update(dt);
 
-    this.renderer.setSize(w, h);
-
-    if (this.controls) {
-      const ctrl = this.controls.getState();
-      ctrl.onZoom = (delta: number) => {
-        zoomViewport(this.playerViewport, delta);
-      };
+    if (w !== this._lastW || h !== this._lastH) {
+      this._lastW = w;
+      this._lastH = h;
+      this.renderer.setSize(w, h);
     }
 
     if (isMobile) {
@@ -546,6 +529,7 @@ class Game {
 
   private cleanup(): void {
     cancelAnimationFrame(this.animationId);
+    this.animationId = 0;
 
     if (this.targetShape?.group) {
       this.targetShape.group.clear();
@@ -569,6 +553,7 @@ class Game {
     this.ambientParticles?.dispose();
     this.successParticles = null;
     this.ambientParticles = null;
+    this._playerMeshes = [];
   }
 
   destroy(): void {

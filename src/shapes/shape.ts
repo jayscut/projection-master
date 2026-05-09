@@ -67,8 +67,4 @@ export class Shape {
   setRotation(x: number, y: number, z: number, w: number): void {
     this.group.quaternion.set(x, y, z, w);
   }
-
-  resetRotation(x: number, y: number, z: number, w: number): void {
-    this.group.quaternion.set(x, y, z, w);
-  }
 }

@@ -46,6 +46,8 @@ export class Controls {
   private targetDragStartY = 0;
   private isTargetDragging = false;
   private targetNeedsSnap = false;
+  private cachedRect: DOMRect | null = null;
+  private _tmpQuat = new THREE.Quaternion();
   private boundOnMouseDown: (e: MouseEvent) => void;
   private boundOnMouseMove: (e: MouseEvent) => void;
   private boundOnMouseUp: () => void;
@@ -99,7 +101,12 @@ export class Controls {
     target.addEventListener('touchstart', this.boundOnTouchStart, { passive: false });
     window.addEventListener('touchmove', this.boundOnTouchMove, { passive: false });
     window.addEventListener('touchend', this.boundOnTouchEnd);
+    window.addEventListener('resize', this.updateCachedRect);
   }
+
+  private updateCachedRect = (): void => {
+    this.cachedRect = this.target.getBoundingClientRect();
+  };
 
   getState(): ControlsState {
     return this.state;
@@ -125,6 +132,7 @@ export class Controls {
     this.target.removeEventListener('touchstart', this.boundOnTouchStart);
     window.removeEventListener('touchmove', this.boundOnTouchMove);
     window.removeEventListener('touchend', this.boundOnTouchEnd);
+    window.removeEventListener('resize', this.updateCachedRect);
     this.pressedKeys.clear();
   }
 
@@ -161,9 +169,9 @@ export class Controls {
         this.inertiaVelX = 0;
         this.inertiaVelY = 0;
       } else {
-        const qY = new THREE.Quaternion().setFromAxisAngle(this.screenUp, -this.inertiaVelX * DRAG_SPEED);
+        this._tmpQuat.setFromAxisAngle(this.screenUp, -this.inertiaVelX * DRAG_SPEED);
         const qX = new THREE.Quaternion().setFromAxisAngle(this.screenRight, this.inertiaVelY * DRAG_SPEED);
-        this.accumulatedQuat.premultiply(qX).premultiply(qY);
+        this.accumulatedQuat.premultiply(qX).premultiply(this._tmpQuat);
         this.accumulatedQuat.normalize();
       }
     }
@@ -174,8 +182,8 @@ export class Controls {
     for (const [keys, axis, sign] of AXIS_KEYS) {
       for (const k of keys) {
         if (this.pressedKeys.has(k)) {
-          const q = new THREE.Quaternion().setFromAxisAngle(axis, step * sign);
-          this.accumulatedQuat.premultiply(q);
+          this._tmpQuat.setFromAxisAngle(axis, step * sign);
+          this.accumulatedQuat.premultiply(this._tmpQuat);
           break;
         }
       }
@@ -183,8 +191,13 @@ export class Controls {
     this.accumulatedQuat.normalize();
   }
 
+  private getRect(): DOMRect {
+    if (!this.cachedRect) this.updateCachedRect();
+    return this.cachedRect!;
+  }
+
   private normalizePos(clientX: number, clientY: number): { x: number; y: number } {
-    const rect = this.target.getBoundingClientRect();
+    const rect = this.getRect();
     return {
       x: ((clientX - rect.left) / rect.width) * 2 - 1,
       y: -(((clientY - rect.top) / rect.height) * 2 - 1),
@@ -192,7 +205,7 @@ export class Controls {
   }
 
   private isInLeftHalf(clientX: number): boolean {
-    const rect = this.target.getBoundingClientRect();
+    const rect = this.getRect();
     return (clientX - rect.left) < rect.width / 2;
   }
 
@@ -221,9 +234,9 @@ export class Controls {
       const p = this.normalizePos(clientX, clientY);
       const dx = this.targetDragStartX - p.x;
       const dy = this.targetDragStartY - p.y;
-      const qY = new THREE.Quaternion().setFromAxisAngle(this.screenUp, -dx * DRAG_SPEED);
+      this._tmpQuat.setFromAxisAngle(this.screenUp, -dx * DRAG_SPEED);
       const qX = new THREE.Quaternion().setFromAxisAngle(this.screenRight, +dy * DRAG_SPEED);
-      this.targetQuat.copy(qY).multiply(qX).multiply(this.targetDragStartQuat);
+      this.targetQuat.copy(this._tmpQuat).multiply(qX).multiply(this.targetDragStartQuat);
       return;
     }
     if (!this.state.isDragging) return;
@@ -236,10 +249,10 @@ export class Controls {
     const dx = this.dragStartX - p.x;
     const dy = this.dragStartY - p.y;
 
-    const qY = new THREE.Quaternion().setFromAxisAngle(this.screenUp, -dx * DRAG_SPEED);
+    this._tmpQuat.setFromAxisAngle(this.screenUp, -dx * DRAG_SPEED);
     const qX = new THREE.Quaternion().setFromAxisAngle(this.screenRight, dy * DRAG_SPEED);
 
-    this.accumulatedQuat.copy(qY).multiply(qX).multiply(this.dragStartQuat);
+    this.accumulatedQuat.copy(this._tmpQuat).multiply(qX).multiply(this.dragStartQuat);
   }
 
   private getTouchAngle(e: TouchEvent): number {
@@ -292,12 +305,12 @@ export class Controls {
       this.state.mouseY = e.touches[0].clientY;
       this.continueDrag(e.touches[0].clientX, e.touches[0].clientY);
     } else if (e.touches.length === 2) {
-      this.isTargetDragging = false; // two-finger is only for player
+      this.isTargetDragging = false;
       const angle = this.getTouchAngle(e);
       const delta = angle - this.lastTouchAngle;
       this.lastTouchAngle = angle;
-      const q = new THREE.Quaternion().setFromAxisAngle(this.screenForward, delta);
-      this.accumulatedQuat.premultiply(q);
+      this._tmpQuat.setFromAxisAngle(this.screenForward, delta);
+      this.accumulatedQuat.premultiply(this._tmpQuat);
       this.accumulatedQuat.normalize();
     }
   }

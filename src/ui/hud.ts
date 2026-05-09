@@ -36,9 +36,8 @@ export class HUD {
       align-items: center;
       justify-content: center;
       gap: 2px;
-      background: rgba(22, 33, 62, 0.9);
+      background: rgba(22, 33, 62, 0.95);
       border-top: 1px solid var(--cyan);
-      backdrop-filter: blur(10px);
       font-family: var(--font-mono);
       font-size: ${isNarrow ? '14px' : '16px'};
       color: var(--text-primary);

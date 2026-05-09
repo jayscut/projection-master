@@ -38,6 +38,7 @@ export class Menu {
       margin-bottom: 10px;
       text-shadow: 0 0 20px rgba(0, 229, 255, 0.5);
       animation: neonPulse 3s ease-in-out infinite;
+      will-change: opacity;
     `;
 
     const subtitle = document.createElement('div');

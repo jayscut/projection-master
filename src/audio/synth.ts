@@ -2,8 +2,6 @@ export class Synth {
   private ctx: AudioContext;
   private masterGain: GainNode;
   private muted = false;
-  private ambientOsc: OscillatorNode | null = null;
-  private ambientGain: GainNode | null = null;
 
   constructor() {
     this.ctx = new AudioContext();
@@ -31,42 +29,8 @@ export class Synth {
 
   toggleMute(): boolean {
     this.muted = !this.muted;
-    if (this.masterGain) {
-      this.masterGain.gain.value = this.muted ? 0 : 0.5;
-    }
-    if (this.ambientGain) {
-      this.ambientGain.gain.value = this.muted ? 0 : 0.08;
-    }
+    this.masterGain.gain.value = this.muted ? 0 : 0.5;
     return this.muted;
-  }
-
-  startAmbient(): void {
-    const ctx = this.ensureContext();
-    if (this.ambientOsc) return;
-
-    this.ambientOsc = ctx.createOscillator();
-    this.ambientGain = ctx.createGain();
-    const filter = ctx.createBiquadFilter();
-
-    this.ambientOsc.type = 'sawtooth';
-    this.ambientOsc.frequency.value = 55;
-
-    filter.type = 'lowpass';
-    filter.frequency.value = 200;
-    filter.Q.value = 5;
-
-    this.ambientGain.gain.value = this.muted ? 0 : 0.08;
-
-    this.ambientOsc.connect(filter);
-    filter.connect(this.ambientGain);
-    this.ambientGain.connect(this.masterGain);
-    this.ambientOsc.start();
-  }
-
-  stopAmbient(): void {
-    this.ambientOsc?.stop();
-    this.ambientOsc = null;
-    this.ambientGain = null;
   }
 
   playMatchTick(matchPercent: number): void {

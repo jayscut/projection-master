@@ -102,6 +102,7 @@ export class Home {
       text-shadow: 0 0 30px rgba(0,229,255,0.5), 0 0 60px rgba(0,229,255,0.2);
       opacity: 0;
       animation: homeFadeIn 1.8s ease 0.3s forwards, glitchPulse 6s ease-in-out 3s infinite;
+      will-change: transform, opacity;
     `;
 
     const titleBefore = document.createElement('div');
@@ -115,6 +116,7 @@ export class Home {
       opacity: 0;
       pointer-events: none;
       animation: titleGlitchBefore 6s ease-in-out 3s infinite;
+      will-change: clip-path;
     `;
 
     const titleAfter = document.createElement('div');
@@ -128,6 +130,7 @@ export class Home {
       opacity: 0;
       pointer-events: none;
       animation: titleGlitchAfter 6s ease-in-out 3s infinite;
+      will-change: clip-path;
     `;
 
     titleWrapper.appendChild(titleBefore);
@@ -163,6 +166,7 @@ export class Home {
       transition: background 0.3s, color 0.3s;
       opacity: 0;
       animation: homeFadeIn 1.2s ease 1.3s forwards, homePulse 2.5s ease-in-out 2.5s infinite;
+      will-change: opacity, transform;
     `;
     btn.addEventListener('mouseenter', () => {
       btn.style.background = 'rgba(0,229,255,0.15)';
@@ -195,6 +199,7 @@ export class Home {
       );
       animation: scanline 8s linear infinite;
       opacity: 0.15;
+      will-change: transform;
     `;
 
     this.container.appendChild(this.overlay);
