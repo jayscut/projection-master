@@ -77,6 +77,22 @@ export function createCubeMesh(options: CubeMeshOptions = {}): THREE.Group {
   return group;
 }
 
+export function getFaceCenter(position: THREE.Vector3, face: string): THREE.Vector3 {
+  const cx = position.x * TOTAL;
+  const cy = position.y * TOTAL;
+  const cz = position.z * TOTAL;
+  const h = CUBE_SIZE / 2;
+  switch (face) {
+    case 'front':  return new THREE.Vector3(cx, cy, cz + h);
+    case 'back':   return new THREE.Vector3(cx, cy, cz - h);
+    case 'top':    return new THREE.Vector3(cx, cy + h, cz);
+    case 'bottom': return new THREE.Vector3(cx, cy - h, cz);
+    case 'right':  return new THREE.Vector3(cx + h, cy, cz);
+    case 'left':   return new THREE.Vector3(cx - h, cy, cz);
+    default:       return new THREE.Vector3(cx, cy, cz);
+  }
+}
+
 export function getCubeCorners(position: THREE.Vector3): THREE.Vector3[] {
   const h = CUBE_SIZE / 2;
   const corners: THREE.Vector3[] = [];

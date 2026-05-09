@@ -1,5 +1,6 @@
 import './style.css';
 import * as THREE from 'three';
+import gsap from 'gsap';
 import type { SaveData, GameState, LevelData } from './types';
 import { LEVELS } from './levels/data';
 import { computeMatchScore } from './matching/matcher';
@@ -14,10 +15,11 @@ import {
 import { Controls } from './input/controls';
 import { Synth } from './audio/synth';
 import { ParticleSystem, AmbientParticles } from './effects/particles';
-import { animateSuccessBurst } from './effects/animations';
+import { animateSuccessBurst, animateShapeAssemble } from './effects/animations';
 import { HUD } from './ui/hud';
 import { CardFlip } from './ui/card';
 import { Menu } from './ui/menu';
+import { ResultPanel } from './ui/result';
 
 const STORAGE_KEY = 'cube_puzzle_save';
 const DEFAULT_SAVE: SaveData = {
@@ -50,6 +52,7 @@ class Game {
   private rotationCount = 0;
   private hintActive = false;
   private hintTimer = 0;
+  private prevStars = 0;
   private debugPanel: HTMLElement | null = null; // toggle via URL #debug
 
   constructor() {
@@ -72,6 +75,17 @@ class Game {
       `;
       this.container.appendChild(this.debugPanel);
     }
+
+    // Unlock AudioContext on first user interaction
+    const unlock = () => {
+      this.synth.unlock();
+      document.removeEventListener('click', unlock);
+      document.removeEventListener('touchstart', unlock);
+      document.removeEventListener('keydown', unlock);
+    };
+    document.addEventListener('click', unlock);
+    document.addEventListener('touchstart', unlock);
+    document.addEventListener('keydown', unlock);
   }
 
   start(): void {
@@ -119,7 +133,7 @@ class Game {
     this.targetViewport = createViewportScene(6, aspect);
     this.playerViewport = createViewportScene(6, aspect);
 
-    this.targetShape = new Shape(level, 0xFF4081, 0xFF4081);
+    this.targetShape = new Shape(level, 0xFF4081, 0xFFFFFF);
     this.targetShape.setRotation(
       level.targetRotation[0],
       level.targetRotation[1],
@@ -128,7 +142,7 @@ class Game {
     );
     addShapeToScene(this.targetViewport.scene, this.targetShape);
 
-    this.playerShape = new Shape(level, 0x00E5FF, 0xFF4081);
+    this.playerShape = new Shape(level, 0x00E5FF, 0xFFFFFF);
     this.playerShape.setRotation(
       level.startRotation[0],
       level.startRotation[1],
@@ -150,7 +164,7 @@ class Game {
     this.playerViewport.scene.add(this.ambientParticles.points);
 
     const canvas = this.renderer.domElement;
-    this.controls = new Controls(canvas);
+    this.controls = new Controls(canvas, this.playerViewport.camera);
     this.controls.setCallbacks({
       onReset: () => this.resetRotation(),
       onHint: () => this.showHint(),
@@ -159,9 +173,32 @@ class Game {
     this.prevQuat.identity();
 
     this.hud = new HUD(this.container);
-    this.hud.setLevelName(`第 ${String(level.id).padStart(2, '0')} 关 · ${level.name}`);
-    this.hud.startTimer();
+    this.hud.setOnConfirm(() => this.confirmSuccess());
 
+    // Intro animations
+    animateShapeAssemble(this.targetShape!.group);
+    requestAnimationFrame(() => animateShapeAssemble(this.playerShape!.group));
+
+    // Opacity breathing glow on player shape faces (visual only)
+    const breatheObj = { val: 0.13 };
+    gsap.to(breatheObj, {
+      val: 0.22,
+      duration: 2.5,
+      yoyo: true,
+      repeat: -1,
+      ease: 'sine.inOut',
+      onUpdate: () => {
+        if (!this.playerShape) return;
+        this.playerShape.group.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.material instanceof THREE.MeshBasicMaterial) {
+            const mat = child.material as THREE.MeshBasicMaterial;
+            if (mat.opacity < 0.3) mat.opacity = breatheObj.val;
+          }
+        });
+      },
+    });
+
+    this.prevStars = 0;
     this.animate();
   }
 
@@ -201,10 +238,10 @@ class Game {
 
     const w = this.container.clientWidth;
     const h = this.container.clientHeight;
-    const vw = w / 2;
+    const isMobile = w < 768;
 
     if (this.controls && this.playerShape) {
-      const ctrl = this.controls.getState();
+      this.controls.update(dt);
 
       const quat = new THREE.Quaternion();
       this.controls.updateRotation(quat);
@@ -219,8 +256,12 @@ class Game {
     if (this.targetShape && this.playerShape) {
       const targetCorners = this.targetShape.getCorners();
       const playerCorners = this.playerShape.getCorners();
+      const targetMarkers = this.targetShape.getMarkerPoints();
+      const playerMarkers = this.playerShape.getMarkerPoints();
       const tolerance = this.currentLevel?.tolerance ?? 0.08;
-      this.matchPercent = computeMatchScore(targetCorners, playerCorners, tolerance);
+      this.matchPercent = computeMatchScore(
+        targetCorners, playerCorners, targetMarkers, playerMarkers, tolerance
+      );
 
       if (this.debugPanel && this.currentLevel) {
         const tq = this.targetShape.group.quaternion;
@@ -231,22 +272,19 @@ class Game {
           `<div style="flex:1;white-space:pre-wrap">` +
           `【目标 · ${this.currentLevel.name}】\n` +
           `旋转: ${fmtQ(tq)}\n容差: ${tolerance}\n` +
-          `角点数: ${targetCorners.length}\n` +
+          `角点数: ${targetCorners.length}  面标记点: ${targetMarkers.length}\n` +
           targetCorners.map(c => fmt(c)).join('\n') +
+          (targetMarkers.length ? '\n---面心---\n' + targetMarkers.map(c => fmt(c)).join('\n') : '') +
           `</div>` +
           `<div style="flex:1;white-space:pre-wrap">` +
           `【玩家 · 匹配 ${(this.matchPercent*100).toFixed(1)}%】\n` +
           `旋转: ${fmtQ(pq)}\n` +
           `RMSE≈${(tolerance*(1-this.matchPercent)).toFixed(4)}\n` +
-          `角点数: ${playerCorners.length}\n` +
+          `角点数: ${playerCorners.length}  面标记点: ${playerMarkers.length}\n` +
           playerCorners.map(c => fmt(c)).join('\n') +
+          (playerMarkers.length ? '\n---面心---\n' + playerMarkers.map(c => fmt(c)).join('\n') : '') +
           `</div>`;
       }
-    }
-
-    if (this.matchPercent > 0.92 && this.playerShape) {
-      this.onSuccess();
-      return;
     }
 
     if (this.hintActive) {
@@ -257,7 +295,13 @@ class Game {
     }
 
     this.hud?.setMatchPercent(this.matchPercent);
-    this.hud?.update();
+
+    // Threshold particle burst when stars increase
+    const stars = this.getStars();
+    if (stars > 0 && stars > this.prevStars && this.playerShape) {
+      this.prevStars = stars;
+      this.successParticles?.burst(new THREE.Vector3(0, 0, 0), 1.5, [0.2, 0.5]);
+    }
 
     if (this.matchPercent > 0.5) {
       this.synth.playMatchTick(this.matchPercent);
@@ -278,40 +322,70 @@ class Game {
       };
     }
 
-    renderViewport(this.targetViewport, this.renderer, 0, 0, vw, h);
-    renderViewport(this.playerViewport, this.renderer, vw, 0, vw, h);
+    if (isMobile) {
+      const vh = h / 2;
+      renderViewport(this.targetViewport, this.renderer, 0, 0, w, vh);
+      renderViewport(this.playerViewport, this.renderer, 0, vh, w, vh);
+    } else {
+      const vw = w / 2;
+      renderViewport(this.targetViewport, this.renderer, 0, 0, vw, h);
+      renderViewport(this.playerViewport, this.renderer, vw, 0, vw, h);
+    }
   };
 
-  private onSuccess(): void {
+  private confirmSuccess(): void {
+    if (this.state !== 'PLAYING' || !this.playerShape) return;
     this.state = 'SUCCESS';
 
-    if (this.hud) {
-      const elapsed = this.hud.stopTimer();
-      if (this.currentLevel) {
-        const id = this.currentLevel.id;
-        const existing = this.saveData.levelStats[id];
-        if (!existing || !existing.completed || elapsed < existing.bestTime) {
-          this.saveData.levelStats[id] = {
-            bestTime: elapsed,
-            rotations: this.rotationCount,
-            completed: true,
-          };
-        }
-        if (this.currentLevel.id >= this.saveData.highestUnlocked) {
-          this.saveData.highestUnlocked = Math.min(20, this.currentLevel.id + 1);
-        }
+    const stars = this.getStars();
+
+    if (this.currentLevel) {
+      const id = this.currentLevel.id;
+      const existing = this.saveData.levelStats[id];
+      if (!existing || !existing.completed || stars > existing.stars) {
+        this.saveData.levelStats[id] = { stars, completed: true };
+      }
+      if (id >= this.saveData.highestUnlocked) {
+        this.saveData.highestUnlocked = Math.min(20, id + 1);
       }
       this.save();
     }
 
     this.synth.playSuccess();
+    this.hud?.remove();
+    this.hud = null;
 
-    if (this.playerShape) {
-      this.successParticles?.burst(new THREE.Vector3(0, 0, 0), 2, [0.5, 1.5]);
-      animateSuccessBurst(this.playerShape.group, () => {
-        setTimeout(() => this.showMenu(), 1000);
-      });
-    }
+    this.successParticles?.burst(new THREE.Vector3(0, 0, 0), 2, [0.5, 1.5]);
+    animateSuccessBurst(this.playerShape.group, () => {
+      if (this.currentLevel) {
+        this.showResult(this.currentLevel.name, this.currentLevel.id);
+      }
+    });
+  }
+
+  private getStars(): number {
+    if (this.matchPercent >= 0.92) return 3;
+    if (this.matchPercent >= 0.84) return 2;
+    if (this.matchPercent >= 0.76) return 1;
+    return 0;
+  }
+
+  private showResult(levelName: string, levelId: number): void {
+    const result = new ResultPanel(this.container, {
+      stars: this.getStars(),
+      levelName,
+      levelId,
+      matchPercent: this.matchPercent,
+    });
+    result.setOnNext(() => {
+      result.remove();
+      const nextId = levelId + 1;
+      if (nextId <= 20 && this.saveData.highestUnlocked >= nextId) {
+        this.startLevel(nextId);
+      } else {
+        this.showMenu();
+      }
+    });
   }
 
   private cleanup(): void {

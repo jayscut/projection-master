@@ -1,13 +1,15 @@
 import * as THREE from 'three';
-import { LevelData } from '../types';
-import { createCubeMesh, getCubeCorners } from './cube';
+import { LevelData, MarkerDef } from '../types';
+import { createCubeMesh, getCubeCorners, getFaceCenter } from './cube';
 
 export class Shape {
   public group: THREE.Group;
   private cubePositions: THREE.Vector3[] = [];
+  private markers: readonly MarkerDef[] = [];
 
   constructor(level: LevelData, edgeColor?: number, markerColor?: number) {
     this.group = new THREE.Group();
+    this.markers = level.markers;
 
     for (let i = 0; i < level.cubes.length; i++) {
       const [cx, cy, cz] = level.cubes[i];
@@ -47,6 +49,19 @@ export class Shape {
       corners.push(...localCorners);
     }
     return corners;
+  }
+
+  getMarkerPoints(): THREE.Vector3[] {
+    this.group.updateMatrixWorld();
+    const points: THREE.Vector3[] = [];
+    for (const marker of this.markers) {
+      if (marker.type === 'face') {
+        const faceCenter = getFaceCenter(this.cubePositions[marker.cubeIndex], marker.face);
+        faceCenter.applyMatrix4(this.group.matrixWorld);
+        points.push(faceCenter);
+      }
+    }
+    return points;
   }
 
   setRotation(x: number, y: number, z: number, w: number): void {

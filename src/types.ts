@@ -15,8 +15,7 @@ export interface LevelData {
 }
 
 export interface LevelStats {
-  bestTime: number;
-  rotations: number;
+  stars: number;
   completed: boolean;
 }
 

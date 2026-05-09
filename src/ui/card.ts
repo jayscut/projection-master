@@ -22,10 +22,14 @@ export class CardFlip {
       z-index: 20;
     `;
 
+    const isNarrow = parent.clientWidth < 480;
+    const cardW = isNarrow ? '240px' : '300px';
+    const cardH = isNarrow ? '320px' : '400px';
+
     this.card = document.createElement('div');
     this.card.style.cssText = `
-      width: 300px;
-      height: 400px;
+      width: ${cardW};
+      height: ${cardH};
       position: relative;
       transform-style: preserve-3d;
       transform: rotateY(0deg);

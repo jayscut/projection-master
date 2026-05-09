@@ -1,17 +1,18 @@
 export class Synth {
-  private ctx: AudioContext | null = null;
-  private masterGain: GainNode | null = null;
+  private ctx: AudioContext;
+  private masterGain: GainNode;
   private muted = false;
   private ambientOsc: OscillatorNode | null = null;
   private ambientGain: GainNode | null = null;
 
+  constructor() {
+    this.ctx = new AudioContext();
+    this.masterGain = this.ctx.createGain();
+    this.masterGain.connect(this.ctx.destination);
+    this.masterGain.gain.value = 0.5;
+  }
+
   private ensureContext(): AudioContext {
-    if (!this.ctx) {
-      this.ctx = new AudioContext();
-      this.masterGain = this.ctx.createGain();
-      this.masterGain.connect(this.ctx.destination);
-      this.masterGain.gain.value = 0.5;
-    }
     if (this.ctx.state === 'suspended') {
       this.ctx.resume();
     }
@@ -20,6 +21,12 @@ export class Synth {
 
   get isMuted(): boolean {
     return this.muted;
+  }
+
+  unlock(): void {
+    if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
   }
 
   toggleMute(): boolean {
@@ -52,7 +59,7 @@ export class Synth {
 
     this.ambientOsc.connect(filter);
     filter.connect(this.ambientGain);
-    this.ambientGain.connect(this.masterGain!);
+    this.ambientGain.connect(this.masterGain);
     this.ambientOsc.start();
   }
 
@@ -76,7 +83,7 @@ export class Synth {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.1);
 
     osc.connect(gain);
-    gain.connect(this.masterGain!);
+    gain.connect(this.masterGain);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.1);
   }
@@ -107,7 +114,7 @@ export class Synth {
 
     source.connect(filter);
     filter.connect(gain);
-    gain.connect(this.masterGain!);
+    gain.connect(this.masterGain);
     source.start();
   }
 
@@ -130,7 +137,7 @@ export class Synth {
       gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
 
       osc.connect(gain);
-      gain.connect(this.masterGain!);
+      gain.connect(this.masterGain);
       osc.start(startTime);
       osc.stop(startTime + 0.4);
     });
@@ -150,7 +157,7 @@ export class Synth {
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
 
     osc.connect(gain);
-    gain.connect(this.masterGain!);
+    gain.connect(this.masterGain);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.05);
   }

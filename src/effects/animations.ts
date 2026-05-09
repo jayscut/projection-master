@@ -89,3 +89,42 @@ export function animateTransition(
     ease: 'power2.inOut',
   });
 }
+
+export function animateShapeIntro(group: THREE.Group): void {
+  gsap.from(group.scale, {
+    x: 0, y: 0, z: 0,
+    duration: 0.6,
+    ease: 'elastic.out(1, 0.4)',
+  });
+}
+
+export function animateShapeAssemble(group: THREE.Group): void {
+  const cubes = group.children;
+  cubes.forEach((cube, i) => {
+    const rx = (Math.random() - 0.5) * 6;
+    const ry = (Math.random() - 0.5) * 6;
+    const rz = (Math.random() - 0.5) * 6;
+
+    gsap.fromTo(cube.position,
+      { x: cube.position.x + rx, y: cube.position.y + ry, z: cube.position.z + rz },
+      {
+        x: cube.position.x,
+        y: cube.position.y,
+        z: cube.position.z,
+        duration: 0.6,
+        delay: i * 0.04,
+        ease: 'power2.out',
+      }
+    );
+
+    gsap.fromTo(cube.scale,
+      { x: 0, y: 0, z: 0 },
+      {
+        x: 1, y: 1, z: 1,
+        duration: 0.5,
+        delay: i * 0.04,
+        ease: 'back.out(1.5)',
+      }
+    );
+  });
+}
