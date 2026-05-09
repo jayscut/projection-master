@@ -21,6 +21,7 @@ import { CardFlip } from './ui/card';
 import { Home } from './ui/home';
 import { Menu } from './ui/menu';
 import { ResultPanel } from './ui/result';
+import { VictoryScreen } from './ui/victory';
 
 const STORAGE_KEY = 'cube_puzzle_save';
 const DEFAULT_SAVE: SaveData = {
@@ -421,9 +422,14 @@ class Game {
     this.hud = null;
 
     this.successParticles?.burst(new THREE.Vector3(0, 0, 0), 2, [0.5, 1.5]);
+    const isLastLevel = this.currentLevel && this.currentLevel.id === 20;
     animateSuccessBurst(this.playerShape.group, () => {
       if (this.currentLevel) {
-        this.showResult(this.currentLevel.name, this.currentLevel.id);
+        if (isLastLevel) {
+          this.startVictory();
+        } else {
+          this.showResult(this.currentLevel.name, this.currentLevel.id);
+        }
       }
     });
   }
@@ -461,6 +467,13 @@ class Game {
       } else {
         this.showMenu();
       }
+    });
+  }
+
+  private startVictory(): void {
+    this.cleanup();
+    new VictoryScreen(this.container, this.getTotalStars(), this.synth, () => {
+      this.showHome();
     });
   }
 
