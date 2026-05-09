@@ -16,7 +16,7 @@ interface ZenText {
 function getZenText(totalStars: number): ZenText {
   if (totalStars >= 59) {
     return {
-      title: '—— 投影大师 ——',
+      title: '大师',
       lines: [
         '二十段旅程',
         '二十次觉知',
