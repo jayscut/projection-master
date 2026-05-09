@@ -175,17 +175,12 @@ class Game {
     addShapeToScene(this.targetViewport.scene, this.targetShape);
 
     this.playerShape = new Shape(level, 0x00E5FF, 0xFFFFFF);
+    this.startQuat.random();
     this.playerShape.setRotation(
-      level.startRotation[0],
-      level.startRotation[1],
-      level.startRotation[2],
-      level.startRotation[3]
-    );
-    this.startQuat.set(
-      level.startRotation[0],
-      level.startRotation[1],
-      level.startRotation[2],
-      level.startRotation[3]
+      this.startQuat.x,
+      this.startQuat.y,
+      this.startQuat.z,
+      this.startQuat.w
     );
     addShapeToScene(this.playerViewport.scene, this.playerShape);
 
@@ -201,10 +196,10 @@ class Game {
       onReset: () => {
         if (!this.currentLevel || !this.playerShape) return;
         this.playerShape.setRotation(
-          this.currentLevel.startRotation[0],
-          this.currentLevel.startRotation[1],
-          this.currentLevel.startRotation[2],
-          this.currentLevel.startRotation[3]
+          this.startQuat.x,
+          this.startQuat.y,
+          this.startQuat.z,
+          this.startQuat.w
         );
         this.controls?.reset();
       },
