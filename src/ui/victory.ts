@@ -190,25 +190,30 @@ export class VictoryScreen {
       return;
     }
 
-    if (this.currentShape) {
-      gsap.to(this.currentShape.group.scale, {
+    const prevShape = this.currentShape;
+    const shape = this.shapes[index];
+    this.currentShape = shape;
+
+    const inDuration = 0.4;
+    const outDuration = 0.5;
+
+    if (prevShape) {
+      gsap.to(prevShape.group.scale, {
         x: 0, y: 0, z: 0,
-        duration: 0.4,
+        duration: outDuration,
         ease: 'power2.in',
         onComplete: () => {
-          if (this.currentShape) this.currentShape.group.visible = false;
+          prevShape.group.visible = false;
         },
       });
     }
 
-    const shape = this.shapes[index];
-    this.currentShape = shape;
     shape.group.visible = true;
     shape.group.rotation.set(0, 0, 0);
 
     gsap.fromTo(shape.group.scale,
       { x: 0, y: 0, z: 0 },
-      { x: 1, y: 1, z: 1, duration: 0.4, ease: 'back.out(1.5)' },
+      { x: 1, y: 1, z: 1, duration: inDuration, ease: 'back.out(1.5)' },
     );
 
     this.synth.playVictoryChime(index);
