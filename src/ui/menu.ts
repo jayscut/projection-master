@@ -4,9 +4,11 @@ export class Menu {
   public container: HTMLElement;
   private onLevelSelect: (levelId: number) => void = () => {};
   private save: SaveData;
+  private thumbnails: Record<number, string>;
 
-  constructor(parent: HTMLElement, saveData: SaveData) {
+  constructor(parent: HTMLElement, saveData: SaveData, thumbnails: Record<number, string>) {
     this.save = saveData;
+    this.thumbnails = thumbnails;
 
     this.container = document.createElement('div');
     this.container.style.cssText = `
@@ -69,9 +71,10 @@ export class Menu {
 
   private createLevelCard(id: number, isNarrow: boolean): HTMLElement {
     const card = document.createElement('div');
-    const isUnlocked = id <= this.save.highestUnlocked;
+    const isUnlocked = true;
     const isCompleted = this.save.levelStats[id]?.completed;
     const stats = this.save.levelStats[id];
+    const thumb = isCompleted ? this.thumbnails[id] : undefined;
     const size = isNarrow ? '56px' : '80px';
     const numSize = isNarrow ? '15px' : '20px';
     const starSize = isNarrow ? '9px' : '13px';
@@ -80,6 +83,8 @@ export class Menu {
     card.style.cssText = `
       width: ${size};
       height: ${size};
+      position: relative;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -97,18 +102,24 @@ export class Menu {
         isCompleted ? 'var(--pink)' :
         isUnlocked ? 'var(--cyan)' : 'var(--text-dim)'
       };
-      background: ${isUnlocked ? 'rgba(0, 229, 255, 0.05)' : 'rgba(85, 85, 119, 0.05)'};
+      background: ${
+        thumb
+          ? `url('${thumb}') center/cover no-repeat, #0d1528`
+          : isUnlocked ? 'rgba(0, 229, 255, 0.05)' : 'rgba(85, 85, 119, 0.05)'
+      };
       opacity: ${isUnlocked ? 1 : 0.4};
     `;
 
-    const numSpan = document.createElement('span');
-    numSpan.textContent = String(id);
-    numSpan.style.cssText = `
-      font-size: ${numSize};
-      line-height: 1;
-      transition: color 0.2s;
-    `;
-    card.appendChild(numSpan);
+    if (!thumb) {
+      const numSpan = document.createElement('span');
+      numSpan.textContent = String(id);
+      numSpan.style.cssText = `
+        font-size: ${numSize};
+        line-height: 1;
+        transition: color 0.2s;
+      `;
+      card.appendChild(numSpan);
+    }
 
     if (isCompleted && stats) {
       const starsRow = document.createElement('span');
@@ -116,6 +127,8 @@ export class Menu {
         display: flex;
         gap: 1px;
         line-height: 1;
+        position: relative;
+        z-index: 2;
       `;
       for (let i = 0; i < 3; i++) {
         const s = document.createElement('span');
@@ -127,7 +140,27 @@ export class Menu {
         `;
         starsRow.appendChild(s);
       }
-      card.appendChild(starsRow);
+
+      if (thumb) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+          position: absolute;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          height: 45%;
+          background: linear-gradient(to top, rgba(10,10,26,0.9), rgba(10,10,26,0));
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          padding-bottom: ${isNarrow ? '2px' : '4px'};
+          z-index: 1;
+        `;
+        overlay.appendChild(starsRow);
+        card.appendChild(overlay);
+      } else {
+        card.appendChild(starsRow);
+      }
 
       card.title = '\u2605'.repeat(stats.stars) + '\u2606'.repeat(3 - stats.stars);
     }

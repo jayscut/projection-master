@@ -22,6 +22,7 @@ import { Home } from './ui/home';
 import { Menu } from './ui/menu';
 import { ResultPanel } from './ui/result';
 import { VictoryScreen } from './ui/victory';
+import { getThumbnails } from './ui/thumbnail';
 
 const STORAGE_KEY = 'cube_puzzle_save';
 const DEFAULT_SAVE: SaveData = {
@@ -54,6 +55,8 @@ class Game {
   private prevStars = 0;
   private targetBaseQuat = new THREE.Quaternion();
   private targetSnapping = false;
+  private levelStartTime = 0;
+  private lastLevelTime = 0;
   private debugPanel: HTMLElement | null = null;
   private _tmpQuat = new THREE.Quaternion();
   private _tmpQuat2 = new THREE.Quaternion();
@@ -112,7 +115,7 @@ class Game {
   private showMenu(animated = false): void {
     this.state = 'MENU';
     this.cleanup();
-    this.menu = new Menu(this.container, this.saveData);
+    this.menu = new Menu(this.container, this.saveData, getThumbnails(LEVELS));
 
     if (animated) {
       this.menu.container.style.animation = 'fadeIn 0.5s ease both';
@@ -254,6 +257,7 @@ class Game {
 
     this.prevStars = 0;
     this.lastTime = performance.now();
+    this.levelStartTime = this.lastTime;
     this.animate();
   }
 
@@ -359,6 +363,7 @@ class Game {
     }
 
     this.hud?.setMatchPercent(this.matchPercent);
+    this.hud?.setTime(now - this.levelStartTime);
 
     const stars = this.getStars();
     if (stars > 0 && stars > this.prevStars && this.playerShape) {
@@ -397,6 +402,8 @@ class Game {
   private confirmSuccess(): void {
     if (this.state !== 'PLAYING' || !this.playerShape) return;
     this.state = 'SUCCESS';
+
+    this.lastLevelTime = performance.now() - this.levelStartTime;
 
     const stars = this.getStars();
 
@@ -450,6 +457,7 @@ class Game {
       levelName,
       levelId,
       matchPercent: this.matchPercent,
+      time: this.lastLevelTime,
     });
     result.setOnBack(() => {
       this.showMenu();
@@ -457,7 +465,7 @@ class Game {
     result.setOnNext(() => {
       result.remove();
       const nextId = levelId + 1;
-      if (nextId <= 20 && this.saveData.highestUnlocked >= nextId) {
+      if (nextId <= 20) {
         this.startLevel(nextId);
       } else {
         this.showMenu();

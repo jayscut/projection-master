@@ -1,8 +1,11 @@
+import { formatTime } from './hud';
+
 export interface ResultData {
   stars: number;
   levelName: string;
   levelId: number;
   matchPercent: number;
+  time: number;
 }
 
 export class ResultPanel {
@@ -57,20 +60,24 @@ export class ResultPanel {
     }
 
     const scoreLabel = document.createElement('div');
-    scoreLabel.textContent = `匹配度 ${Math.round(data.matchPercent * 100)}%`;
     scoreLabel.style.cssText = `
       font-family: var(--font-mono);
       font-size: 14px;
       color: var(--text-dim);
-      margin-bottom: 28px;
+      margin-bottom: 8px;
       animation: slideUp 0.4s ease both;
       animation-delay: 0.7s;
     `;
+    scoreLabel.innerHTML =
+      `匹配度 <span style="color:var(--cyan)">${Math.round(data.matchPercent * 100)}%</span>` +
+      `&nbsp;&nbsp;|&nbsp;&nbsp;` +
+      `用时 <span style="color:var(--pink)">${formatTime(data.time)}</span>`;
 
     const btnRow = document.createElement('div');
     btnRow.style.cssText = `
       display: flex;
       gap: 16px;
+      margin-top: 20px;
       animation: slideUp 0.4s ease both;
       animation-delay: 0.9s;
     `;

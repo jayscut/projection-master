@@ -5,10 +5,18 @@ function computeStars(pct: number): number {
   return 0;
 }
 
+export function formatTime(ms: number): string {
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 export class HUD {
   private container: HTMLElement;
   private matchEl: HTMLElement;
   private starsEl: HTMLElement;
+  private timerEl: HTMLElement;
   private confirmBtn: HTMLButtonElement;
   private backBtn: HTMLButtonElement;
   private progressBar: HTMLElement;
@@ -135,11 +143,35 @@ export class HUD {
     row.appendChild(this.confirmBtn);
     this.container.appendChild(row);
     this.container.appendChild(this.backBtn);
+
+    this.timerEl = document.createElement('div');
+    this.timerEl.style.cssText = `
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: var(--font-mono);
+      font-size: ${isNarrow ? '18px' : '24px'};
+      color: var(--cyan);
+      letter-spacing: 3px;
+      text-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
+      z-index: 10;
+      pointer-events: none;
+    `;
+    this.timerEl.textContent = '00:00';
+    parent.appendChild(this.timerEl);
     parent.appendChild(this.container);
   }
 
   setOnConfirm(callback: () => void): void {
     this.onConfirm = callback;
+  }
+
+  setTime(ms: number): void {
+    const text = formatTime(ms);
+    if (this.timerEl.textContent !== text) {
+      this.timerEl.textContent = text;
+    }
   }
 
   setMatchPercent(percent: number): void {
@@ -196,5 +228,6 @@ export class HUD {
 
   remove(): void {
     this.container.remove();
+    this.timerEl.remove();
   }
 }
